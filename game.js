@@ -22,36 +22,55 @@ let gameState = 'start'; // Ändern zu: 'start', 'running', 'gameover'
 let score = 0;
 let highScore = localStorage.getItem('highScore') || 0; // Speichert den Highscore
 
+const baseSpeed = canvas.width * 0.004; // Grundgeschwindigkeit
+const maxSpeedMultiplier = 2.5; // Maximale Geschwindigkeitserhöhung
+
+let isSpacePressed = false;
+const initialJumpForce = -12;  // Anfängliche Sprungkraft
+const additionalJumpForce = -0.5;  // Zusätzliche Kraft pro Frame
+const maxUpwardVelocity = -20;  // Maximale Aufwärtsgeschwindigkeit
+
+function getCurrentSpeed() {
+    const speedIncrease = Math.min(score / 500, maxSpeedMultiplier - 1); // Erhöht sich bis Score 500
+    return baseSpeed * (1 + speedIncrease);
+}
+
 function drawCamel() {
     ctx.drawImage(camelImg, camel.x, camel.y, camel.width, camel.height);
 }
 
 function updateCamel() {
+    if (isSpacePressed && camel.velocityY > maxUpwardVelocity) {
+        camel.velocityY += additionalJumpForce;  // Weiterer Aufwärtsschub
+    }
+
     camel.velocityY += camel.gravity;
     camel.y += camel.velocityY;
 
     if (camel.y > canvas.height - camel.height) {
         camel.y = canvas.height - camel.height;
         camel.velocityY = 0;
-        camel.jumps = 0; // Reset jumps when touching ground
+        camel.jumps = 0;
     }
 }
 
 function jump() {
     if (camel.jumps < camel.maxJumps) {
-        camel.velocityY = -20;
+        camel.velocityY = -15;
         camel.jumps++;
     }
 }
 
-// Event Listener für Tastatur anpassen
+// Keydown und Keyup Event Listener anpassen
 window.addEventListener("keydown", (e) => {
-    if (e.code === "Space") {
+    if (e.code === "Space" && !e.repeat) {
         if (gameState === 'start') {
             score = 0;
             gameState = 'running';
-        } else if (gameState === 'running') {
-            jump();
+        } else if (gameState === 'running' && camel.jumps < camel.maxJumps) {
+            isSpacePressed = true;
+            camel.velocityY = initialJumpForce;
+            camel.jumps++;
         } else if (gameState === 'gameover') {
             score = 0;
             obstacles.length = 0;
@@ -60,6 +79,12 @@ window.addEventListener("keydown", (e) => {
             camel.jumps = 0;
             gameState = 'running';
         }
+    }
+});
+
+window.addEventListener("keyup", (e) => {
+    if (e.code === "Space") {
+        isSpacePressed = false;
     }
 });
 
@@ -84,21 +109,31 @@ const obstacles = [];
 const obstacleWidth = 30;
 const obstacleHeight = 50;
 
+// Minimalen Abstand zwischen Hindernissen festlegen
+const minObstacleDistance = 300; // Mindestabstand zwischen Kakteen
+
 function createObstacle() {
-    const height = Math.min(canvas.height * 0.15, 50); // max 15% der Bildschirmhöhe
-    const width = Math.min(canvas.width * 0.06, 30);  // max 6% der Bildschirmbreite
-    obstacles.push({
-        x: canvas.width,
+    // Prüfe ob das letzte Hindernis weit genug weg ist
+    const lastObstacle = obstacles[obstacles.length - 1];
+    if (lastObstacle && lastObstacle.x > canvas.width - minObstacleDistance) {
+        return; // Kein neues Hindernis wenn das letzte zu nah ist
+    }
+
+    const height = Math.min(canvas.height * 0.15, 50);
+    const width = Math.min(canvas.width * 0.06, 30);
+    obstacles.push({ 
+        x: canvas.width, 
         y: canvas.height - height,
         width: width,
-        height: height
+        height: height 
     });
 }
 
 function updateObstacles() {
-    const speed = canvas.width * 0.005;
+    const currentSpeed = getCurrentSpeed();
+    
     if (gameState === 'running') {
-        score += 0.1; // Erhöhe Score während des Spiels
+        score += 0.1;
         if (score > highScore) {
             highScore = score;
             localStorage.setItem('highScore', highScore);
@@ -106,11 +141,15 @@ function updateObstacles() {
     }
     
     obstacles.forEach((obs, index) => {
-        obs.x -= speed;
+        obs.x -= currentSpeed;
         if (obs.x + obs.width < 0) obstacles.splice(index, 1);
     });
     
-    if (Math.random() < 0.02) createObstacle();
+    // Spawn-Rate an Geschwindigkeit anpassen
+    const spawnChance = 0.01 * (1 + score / 1000); // Spawn-Rate erhöht sich leicht
+    if (Math.random() < spawnChance && obstacles.length < 3) {
+        createObstacle();
+    }
 }
 
 function drawObstacles() {
@@ -167,9 +206,10 @@ function drawStartScreen() {
     ctx.fillText('Kamelrennen', canvas.width / 2, canvas.height / 3);
     
     ctx.font = '24px Arial';
-    ctx.fillText('Tippe zum Springen', canvas.width / 2, canvas.height / 2);
+    ctx.fillText('Leertaste gedrückt halten zum Höherspringen', canvas.width / 2, canvas.height / 2);
     ctx.fillText('Doppelsprung möglich!', canvas.width / 2, canvas.height / 2 + 40);
     ctx.fillText('Weiche den Kakteen aus', canvas.width / 2, canvas.height / 2 + 80);
+    ctx.fillText('Es wird immer schneller!', canvas.width / 2, canvas.height / 2 + 120);
     
     ctx.font = '32px Arial';
     ctx.fillText('Tippe zum Start', canvas.width / 2, canvas.height * 0.8);
