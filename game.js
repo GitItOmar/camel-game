@@ -53,16 +53,24 @@ const obstacleWidth = 30;
 const obstacleHeight = 50;
 
 function createObstacle() {
-    obstacles.push({ x: canvas.width, y: canvas.height - obstacleHeight });
+    const height = Math.min(canvas.height * 0.15, 50); // max 15% der Bildschirmhöhe
+    const width = Math.min(canvas.width * 0.06, 30);  // max 6% der Bildschirmbreite
+    obstacles.push({ 
+        x: canvas.width, 
+        y: canvas.height - height,
+        width: width,
+        height: height 
+    });
 }
 
 function updateObstacles() {
+    const speed = canvas.width * 0.005; // 0.5% der Bildschirmbreite pro Frame
     obstacles.forEach((obs, index) => {
-        obs.x -= 5; // Bewegung nach links
-        if (obs.x + obstacleWidth < 0) obstacles.splice(index, 1); // Entfernen, wenn aus dem Bild
+        obs.x -= speed;
+        if (obs.x + obs.width < 0) obstacles.splice(index, 1);
     });
-
-    if (Math.random() < 0.02) createObstacle(); // Zufällig Kakteen spawnen
+    
+    if (Math.random() < 0.02) createObstacle();
 }
 
 function drawObstacles() {
@@ -97,5 +105,28 @@ function gameLoop() {
 
     requestAnimationFrame(gameLoop);
 }
+
+// Canvas Größe dynamisch anpassen
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    // Kamel-Größe relativ zur Bildschirmgröße anpassen
+    camel.width = Math.min(canvas.width * 0.2, 100); // max 20% der Bildschirmbreite
+    camel.height = camel.width;
+    
+    // Y-Position neu berechnen
+    camel.y = canvas.height - camel.height;
+}
+
+// Event Listener für Bildschirmgrößenänderungen
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas(); // Initial aufrufen
+
+// Touch Events für mobile Steuerung hinzufügen
+canvas.addEventListener("touchstart", (e) => {
+    e.preventDefault(); // Verhindert Zoom/Scroll auf Mobilgeräten
+    jump();
+});
 
 gameLoop();
