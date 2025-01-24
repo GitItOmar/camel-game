@@ -18,7 +18,9 @@ const camel = {
     maxJumps: 2 // Maximale Anzahl der Sprünge
 };
 
-let gameState = 'running'; // Mögliche Werte: 'running', 'gameover'
+let gameState = 'start'; // Ändern zu: 'start', 'running', 'gameover'
+let score = 0;
+let highScore = localStorage.getItem('highScore') || 0; // Speichert den Highscore
 
 function drawCamel() {
     ctx.drawImage(camelImg, camel.x, camel.y, camel.width, camel.height);
@@ -42,11 +44,39 @@ function jump() {
     }
 }
 
-// Event Listener für Mausklick und Leertaste
-canvas.addEventListener("click", jump);
+// Event Listener für Tastatur anpassen
 window.addEventListener("keydown", (e) => {
     if (e.code === "Space") {
+        if (gameState === 'start') {
+            score = 0;
+            gameState = 'running';
+        } else if (gameState === 'running') {
+            jump();
+        } else if (gameState === 'gameover') {
+            score = 0;
+            obstacles.length = 0;
+            camel.y = canvas.height - camel.height;
+            camel.velocityY = 0;
+            camel.jumps = 0;
+            gameState = 'running';
+        }
+    }
+});
+
+// Auch den Click-Event Listener anpassen (für Mausklicks)
+canvas.addEventListener("click", (e) => {
+    if (gameState === 'start') {
+        score = 0;
+        gameState = 'running';
+    } else if (gameState === 'running') {
         jump();
+    } else if (gameState === 'gameover') {
+        score = 0;
+        obstacles.length = 0;
+        camel.y = canvas.height - camel.height;
+        camel.velocityY = 0;
+        camel.jumps = 0;
+        gameState = 'running';
     }
 });
 
@@ -66,12 +96,20 @@ function createObstacle() {
 }
 
 function updateObstacles() {
-    const speed = canvas.width * 0.005; // 0.5% der Bildschirmbreite pro Frame
+    const speed = canvas.width * 0.005;
+    if (gameState === 'running') {
+        score += 0.1; // Erhöhe Score während des Spiels
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem('highScore', highScore);
+        }
+    }
+    
     obstacles.forEach((obs, index) => {
         obs.x -= speed;
         if (obs.x + obs.width < 0) obstacles.splice(index, 1);
     });
-
+    
     if (Math.random() < 0.02) createObstacle();
 }
 
@@ -80,17 +118,29 @@ function drawObstacles() {
     obstacles.forEach(obs => ctx.fillRect(obs.x, obs.y, obstacleWidth, obstacleHeight));
 }
 
+function drawScore() {
+    ctx.fillStyle = 'black';
+    ctx.font = '24px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Score: ${Math.floor(score)}`, 20, 40);
+    ctx.fillText(`Highscore: ${Math.floor(highScore)}`, 20, 70);
+}
+
 function drawGameOver() {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-
+    
     ctx.fillStyle = 'white';
     ctx.font = '48px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Game Over!', canvas.width / 2, canvas.height / 2);
-
+    ctx.fillText('Schade Elisa!', canvas.width / 2, canvas.height / 2 - 50);
+    
+    ctx.font = '32px Arial';
+    ctx.fillText(`Score: ${Math.floor(score)}`, canvas.width / 2, canvas.height / 2 + 10);
+    ctx.fillText(`Highscore: ${Math.floor(highScore)}`, canvas.width / 2, canvas.height / 2 + 50);
+    
     ctx.font = '24px Arial';
-    ctx.fillText('Tippe zum Neustart', canvas.width / 2, canvas.height / 2 + 50);
+    ctx.fillText('Tippe zum Neustart', canvas.width / 2, canvas.height / 2 + 100);
 }
 
 function checkCollision() {
@@ -106,17 +156,39 @@ function checkCollision() {
     });
 }
 
+// Startbildschirm Funktion
+function drawStartScreen() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = 'white';
+    ctx.font = '48px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Kamelrennen', canvas.width / 2, canvas.height / 3);
+    
+    ctx.font = '24px Arial';
+    ctx.fillText('Tippe zum Springen', canvas.width / 2, canvas.height / 2);
+    ctx.fillText('Doppelsprung möglich!', canvas.width / 2, canvas.height / 2 + 40);
+    ctx.fillText('Weiche den Kakteen aus', canvas.width / 2, canvas.height / 2 + 80);
+    
+    ctx.font = '32px Arial';
+    ctx.fillText('Tippe zum Start', canvas.width / 2, canvas.height * 0.8);
+}
+
 function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (gameState === 'running') {
+    if (gameState === 'start') {
+        drawCamel();
+        drawStartScreen();
+    } else if (gameState === 'running') {
         drawCamel();
         updateCamel();
         updateObstacles();
         drawObstacles();
+        drawScore();
         checkCollision();
     } else if (gameState === 'gameover') {
-        // Zeichne trotzdem den letzten Spielzustand
         drawCamel();
         drawObstacles();
         drawGameOver();
@@ -145,11 +217,14 @@ resizeCanvas(); // Initial aufrufen
 // Touch Events für mobile Steuerung hinzufügen
 canvas.addEventListener("touchstart", (e) => {
     e.preventDefault();
-    if (gameState === 'running') {
+    if (gameState === 'start') {
+        score = 0;
+        gameState = 'running';
+    } else if (gameState === 'running') {
         jump();
     } else if (gameState === 'gameover') {
-        // Spiel neu starten
-        obstacles.length = 0; // Alle Hindernisse entfernen
+        score = 0;
+        obstacles.length = 0;
         camel.y = canvas.height - camel.height;
         camel.velocityY = 0;
         camel.jumps = 0;
