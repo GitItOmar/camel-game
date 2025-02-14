@@ -1,6 +1,25 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+// Try to get username from browser
+let username;
+try {
+    // Check if user is logged into Google
+    if (window.google && window.google.accounts && window.google.accounts.id) {
+        const credential = window.google.accounts.id.getCredential();
+        if (credential) {
+            username = credential.name;
+        }
+    }
+} catch (e) {
+    console.log("Could not get Google account info");
+}
+
+// Fallback if no username found
+if (!username) {
+    username = 'Spieler';
+}
+
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
@@ -172,7 +191,7 @@ function drawGameOver() {
     ctx.fillStyle = 'white';
     ctx.font = '48px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Schade Elisa!', canvas.width / 2, canvas.height / 2 - 50);
+    ctx.fillText(`Schade ${username}!`, canvas.width / 2, canvas.height / 2 - 50);
     
     ctx.font = '32px Arial';
     ctx.fillText(`Score: ${Math.floor(score)}`, canvas.width / 2, canvas.height / 2 + 10);
